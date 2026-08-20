@@ -177,6 +177,50 @@ ac
 referencearea(u::Units) = u isa ImperialUnits ? u"ac" : u"ha"
 
 """
+    referencearea(a::Area)
+
+The `Area`-quantity counterpart of [`referencearea(::Units)`](@ref): returns `u"ac"` if
+`a` is itself already given in acres, `u"ha"` otherwise (covering `ha` as well as any
+other metric area unit, e.g. `m^2`, `km^2`).
+
+# Examples
+
+```julia-repl
+julia> referencearea(0.1u"ac")
+ac
+
+julia> referencearea(1000u"m^2")
+ha
+```
+"""
+referencearea(a::Area) = unit(a) == u"ac" ? u"ac" : u"ha"
+
+"""
+    referencevolume(u::Units)
+
+Returns the natural reference volume unit for the measurement system a length unit `u`
+belongs to: cubic meters (`m^3`) for the metric system, cubic feet (`ft^3`) for the
+imperial system — the volume-quantity analogue of [`referencearea`](@ref).
+
+# Arguments
+- `u::Units`: A length unit, such as `unit(30u"cm")` or `unit(12u"inch")`.
+
+# Returns
+- `Units`: `u"m^3"` if `u` is a metric length unit, `u"ft^3"` if it is an imperial one.
+
+# Examples
+
+```julia-repl
+julia> referencevolume(u"cm")
+m^3
+
+julia> referencevolume(u"inch")
+ft^3
+```
+"""
+referencevolume(u::Units) = u isa ImperialUnits ? u"ft^3" : u"m^3"
+
+"""
     expansionfactor(u::Units, area::Area)
     expansionfactor(x::Quantity, area::Area)
     expansionfactor(x::AbstractVector{<:Quantity}, area::Area)

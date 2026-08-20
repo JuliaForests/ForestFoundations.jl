@@ -17,8 +17,10 @@ const AUNIT = u"ha"    # plot/stand areas
 Promotes a plain number (or vector of numbers) to a quantity in unit `u`, and
 leaves an already-unitful quantity (or `nothing`) untouched. Lets a function's
 keyword/positional arguments accept `Real` and `Unitful.Quantity` values
-interchangeably and normalize to one or the other uniformly.
+interchangeably and normalize to one or the other uniformly. A vector may mix
+in `missing` entries; each is passed through untouched instead of being
+promoted.
 """
-withunit(x::Union{Real,AbstractVector{<:Real}}, u::Units) = x * u
-withunit(x::Union{Quantity,AbstractVector{<:Quantity}}, ::Units) = x
+withunit(x::Union{Real,AbstractVector{<:Union{Missing,<:Real}}}, u::Units) = x * u
+withunit(x::Union{Quantity,AbstractVector{<:Union{Missing,<:Quantity}}}, ::Units) = x
 withunit(::Nothing, ::Units) = nothing

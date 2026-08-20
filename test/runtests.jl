@@ -54,5 +54,32 @@ using Test
       @test expansionfactor(u"cm", area) == inv(area)
       areaImperial = 0.2u"ac"
       @test expansionfactor(u"ft", areaImperial) == inv(areaImperial)
+
+      # referencearea also accepts an Area quantity directly, not just a length unit
+      @test referencearea(1000.0u"m^2") == u"ha"
+      @test referencearea(0.1u"ha") == u"ha"
+      @test referencearea(0.1u"ac") == u"ac"
+    end
+
+    @testset "Reference Volume Tests" begin
+      @test referencevolume(u"cm") == u"m^3"
+      @test referencevolume(u"m") == u"m^3"
+      @test referencevolume(u"inch") == u"ft^3"
+      @test referencevolume(u"ft") == u"ft^3"
+    end
+
+    @testset "withunit Tests" begin
+      @test withunit(30.0, u"cm") == 30.0u"cm"
+      @test withunit(30.0u"cm", u"cm") == 30.0u"cm"
+      @test withunit([30.0, 25.0], u"cm") == [30.0, 25.0]u"cm"
+      @test withunit([30.0, 25.0]u"cm", u"cm") == [30.0, 25.0]u"cm"
+      @test withunit(nothing, u"cm") === nothing
+
+      # a vector may mix in `missing`; each entry is promoted individually and
+      # `missing` itself passes through untouched
+      promoted = withunit([30.0, missing, 25.0], u"cm")
+      @test isequal(promoted, [30.0u"cm", missing, 25.0u"cm"])
+      alreadyUnitful = [30.0, missing, 25.0]u"cm"
+      @test withunit(alreadyUnitful, u"cm") === alreadyUnitful
     end
 end

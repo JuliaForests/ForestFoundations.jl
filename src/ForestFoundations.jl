@@ -10,7 +10,7 @@ export @u_str, unit, ustrip, uconvert, Length, Area, Volume, Mass, Units, Quanti
 
 include("utils.jl")
 
-export basalarea, removeunits, restoreunits, referencearea, expansionfactor
+export basalarea, removeunits, restoreunits, referencearea, referencevolume, expansionfactor
 
 include("units.jl")
 
