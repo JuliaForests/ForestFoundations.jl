@@ -12,8 +12,4 @@ include("utils.jl")
 
 export basalarea, removeunits, restoreunits, referencearea, referencevolume, expansionfactor
 
-include("units.jl")
-
-export Len, Vol, DUNIT, HUNIT, VUNIT, AUNIT, withunit
-
 end

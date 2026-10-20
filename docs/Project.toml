@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ForestFoundations = "c3d06f35-1cec-4a06-8b44-87c7409765a8"
+
+[sources]
+ForestFoundations = {path = ".."}

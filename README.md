@@ -59,7 +59,7 @@ julia> basalarea(30)
 
 # imperial diameter in inches -> basal area in ft^2
 julia> basalarea(11.8u"inch")
-0.7594363907740327 ft^2
+0.7594363907740328 ft^2
 ```
 
 ### Reference Area and Expansion Factor

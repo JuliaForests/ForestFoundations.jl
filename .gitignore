@@ -1,2 +1,4 @@
 /Manifest*.toml
 desktop.ini
+/docs/Manifest*.toml
+/docs/build/

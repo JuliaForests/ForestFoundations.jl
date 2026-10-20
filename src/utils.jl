@@ -1,70 +1,101 @@
 """
-    basalarea(d::Length)
+    basalarea(D::Length)
+    basalarea(D1::Length, D2::Length)
 
-calculates the individual cross-sectional area (g) of a tree stem.
+Calculates the cross-sectional area (``g``) of a tree stem from its diameter (``D``).
+Measured at breast height, this is the tree basal area.
 
-# arguments
-- `d`: diameter at breast height as a unitful quantity e.g. 10u"cm" or 12u"inch". The diameter must be a positive value.
+# Arguments
+- `D`: Diameter as a unitful quantity, e.g. `10u"cm"` or `12u"inch"`. A diameter tape
+  reading already is a diameter (the tape is graduated in ``\\pi`` units), so it can be
+  passed as is; a raw circumference ``C`` must be converted first with ``D = C / \\pi``.
+- `D1`, `D2`: Long and short diameters (axes) of an elliptical cross section, taken with
+  calipers. They may be given in different length units; `D2` is converted to the unit of `D1`.
 
-# returns
-- `Quantity`: area in square feet ft2 if input is imperial or square meters m2 otherwise.
+All diameters must be non-negative values.
 
-# mathematical basis
-the calculation uses the standard geometric formula
+# Returns
+- `Quantity`: Area in square feet (`ft^2`) if the input is imperial, or square meters (`m^2`) otherwise.
+
+# Mathematical basis
+For a circular cross section the area follows from the diameter:
 ```math
-g = \\frac{\\pi d^2}{4}
+g = \\frac{\\pi D^2}{4}
 ```
+For an elliptical cross section with long and short diameters ``D_1`` and ``D_2``, the
+exact area is obtained with the geometric mean diameter ``\\sqrt{D_1 D_2}``, which gives:
+```math
+g = \\frac{\\pi D_1 D_2}{4}
+```
+The one-argument method is the case ``D_1 = D_2 = D``.
 
-# accuracy note
+# Accuracy note
+Most stems are not perfectly circular. A diameter tape slightly overestimates the true
+area, because the circle is the geometric figure with the smallest perimeter for a given
+area. With calipers, the geometric mean of the long and short diameters is the best
+practice for elliptical sections; the arithmetic mean overestimates the area (about 4% at
+a 3:2 axis ratio and 13% at 2:1), so it is not offered here.
 
-most stems are not perfectly circular
-using a diameter tape slightly overestimates the true area because the circle
-is the geometric figure with the smallest perimeter for a given area.
-
-# examples
+# Examples
 
 ```julia-repl
 julia> basalarea(30u"cm")
 0.07068583470577035 m^2
 
 julia> basalarea(11.8u"inch")
-0.7594363907740327 ft^2
+0.7594363907740328 ft^2
+
+julia> basalarea(36u"cm", 25u"cm")
+0.07068583470577035 m^2
 ```
+
+# References
+Kershaw Jr., Ducey, Beers & Hush (2020). *Forest Mensuration*, 5th ed., Section 5.2.3.
 """
-function basalarea(d::Length)
-  ustrip(d) <= 0 && throw(DomainError("The diameter must be a positive value, observed values is $d"))
+function basalarea(D1::Length, D2::Length)
+    (ustrip(D1) < 0 || ustrip(D2) < 0) &&
+        throw(DomainError((D1, D2), "The diameter must be a non-negative value, observed values are $D1 and $D2"))
 
-  g = quartπ * abs2(d)
+    g = quartπ * D1 * uconvert(unit(D1), D2)
 
-  if unit(d) isa ImperialUnits
-    return uconvert(u"ft^2", g)
-  else
-    return uconvert(u"m^2", g)
-  end
+    if unit(D1) isa ImperialUnits
+        return uconvert(u"ft^2", g)
+    else
+        return uconvert(u"m^2", g)
+    end
 end
 
+basalarea(D::Length) = basalarea(D, D)
+
 """
-    basalarea(d::Real)
+    basalarea(D::Real)
+    basalarea(D1::Real, D2::Real)
 
-Calculates the basal area (g) of a tree given its diameter in centimeters.
+Calculates the cross-sectional area (``g``) of a tree stem from diameters (``D``) given as
+plain numbers, which are assumed to be in **centimeters**.
 
-# Description
-This function computes the basal area of a tree, which is the cross-sectional area of the tree trunk at breast height (usually measured at 1.3 meters above ground). Basal area is a critical parameter in forest mensuration, used for estimating stand density, timber volume, and assessing competition among trees in a forest stand.
+See [`basalarea(::Length)`](@ref) for the formulas, the elliptical-section method and the
+accuracy notes. Measured at breast height (``1.3`` m, or ``1.37`` m / ``4.5`` ft in North
+America), the result is the tree basal area.
 
 # Arguments
-- `d::Real`: The diameter at breast height of the tree in **centimeters**. The diameter must be a positive value.
+- `D`: Diameter in **centimeters**. It must be a non-negative value.
+- `D1`, `D2`: Long and short diameters of an elliptical cross section in **centimeters**.
 
 # Returns
-- `Float64`: The basal area of the tree in **square meters**.
+- `Quantity`: Area in **square meters** (`m^2`).
 
-# Example
+# Examples
 ```julia-repl
-# Calculate the basal area for a tree with a diameter of 30 cm
 julia> basalarea(30)
+0.07068583470577035 m^2
+
+julia> basalarea(36, 25)
 0.07068583470577035 m^2
 ```
 """
-basalarea(d::Real) = basalarea(d * u"cm")
+basalarea(D::Real) = basalarea(D * u"cm")
+basalarea(D1::Real, D2::Real) = basalarea(D1 * u"cm", D2 * u"cm")
 
 """
     removeunits(data::AbstractDataFrame; renamecols::Bool=true)
@@ -80,26 +111,26 @@ Safely ignores dimensionless data (NoUnits) preventing empty parentheses.
 - `DataFrame`: A new DataFrame with plain numeric types, ready for export.
 """
 function removeunits(data::AbstractDataFrame; renamecols::Bool=true)
-  dataClean = copy(data)
+    dataClean = copy(data)
 
-  for colname in names(dataClean)
-    col = dataClean[!, colname]
-    T = nonmissingtype(eltype(col))
+    for colname in names(dataClean)
+        col = dataClean[!, colname]
+        T = nonmissingtype(eltype(col))
 
-    if T <: Quantity
-      u = unit(T)
-      # Skip renaming if the column is dimensionless (NoUnits)
-      if renamecols && u != NoUnits
-        newname = "$(colname) ($(u))"
-        rename!(dataClean, colname => newname)
-        dataClean[!, newname] = ustrip.(col)
-      else
-        dataClean[!, colname] = ustrip.(col)
-      end
+        if T <: Quantity
+            u = unit(T)
+            # Skip renaming if the column is dimensionless (NoUnits)
+            if renamecols && u != NoUnits
+                newname = "$(colname) ($(u))"
+                rename!(dataClean, colname => newname)
+                dataClean[!, newname] = ustrip.(col)
+            else
+                dataClean[!, colname] = ustrip.(col)
+            end
+        end
     end
-  end
 
-  return dataClean
+    return dataClean
 end
 
 """
@@ -115,40 +146,40 @@ Safely evaluates mathematical expressions (e.g., m^3) inside the Unitful module 
 - `DataFrame`: A DataFrame with restored Unitful quantities.
 """
 function restoreunits(data::AbstractDataFrame)
-  dataRestored = copy(data)
+    dataRestored = copy(data)
 
-  # Regular expression to capture the base name and the unit inside parentheses
-  regex = r"^(.*?)\s*\((.*?)\)$"
+    # Regular expression to capture the base name and the unit inside parentheses
+    regex = r"^(.*?)\s*\((.*?)\)$"
 
-  for colname in names(dataRestored)
-    m = match(regex, colname)
+    for colname in names(dataRestored)
+        m = match(regex, colname)
 
-    if m !== nothing
-      basename = strip(m.captures[1])
-      unitstr = strip(m.captures[2])
+        if m !== nothing
+            basename = strip(m.captures[1])
+            unitstr = strip(m.captures[2])
 
-      # Handle cases where the parentheses were inadvertently empty
-      if unitstr == ""
-        rename!(dataRestored, colname => basename)
-        continue
-      end
+            # Handle cases where the parentheses were inadvertently empty
+            if unitstr == ""
+                rename!(dataRestored, colname => basename)
+                continue
+            end
 
-      try
-        # uparse can return an expression (e.g., for "m^3").
-        # Core.eval evaluates this expression safely inside the Unitful context.
-        u = Core.eval(Unitful, Unitful.uparse(unitstr))
+            try
+                # uparse can return an expression (e.g., for "m^3").
+                # Core.eval evaluates this expression safely inside the Unitful context.
+                u = Core.eval(Unitful, Unitful.uparse(unitstr))
 
-        rename!(dataRestored, colname => basename)
-        dataRestored[!, basename] = dataRestored[!, basename] .* u
-      catch e
-        # Formats the warning outside the macro to prevent scope interpolation bugs
-        msg = "Could not parse unit '$(unitstr)' in column '$(colname)'. Error: $e"
-        @warn msg
-      end
+                rename!(dataRestored, colname => basename)
+                dataRestored[!, basename] = dataRestored[!, basename] .* u
+            catch e
+                # Formats the warning outside the macro to prevent scope interpolation bugs
+                msg = "Could not parse unit '$(unitstr)' in column '$(colname)'. Error: $e"
+                @warn msg
+            end
+        end
     end
-  end
 
-  return dataRestored
+    return dataRestored
 end
 
 """

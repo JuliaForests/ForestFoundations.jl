@@ -8,8 +8,20 @@ using Test
       expectedBasalArea = 0.07068583470577035
       @test basalarea(dStandard) |> ustrip ≈ expectedBasalArea atol = 1e-6
       dZero = 0.0
-      @test_throws DomainError basalarea(dZero)
+      @test basalarea(dZero) == 0.0u"m^2"
+      @test basalarea(0.0u"cm", 25u"cm") == 0.0u"m^2"
       @test_throws DomainError basalarea(-dStandard)
+
+      # geometric mean of two diameters: 36 x 25 cm has the area of a 30 cm circle
+      @test basalarea(36, 25) |> ustrip ≈ expectedBasalArea atol = 1e-6
+      @test basalarea(36u"cm", 25u"cm") ≈ basalarea(30u"cm")
+      @test basalarea(25u"cm", 36u"cm") ≈ basalarea(36u"cm", 25u"cm")
+      @test basalarea(30u"cm", 30u"cm") ≈ basalarea(30u"cm")
+      # mixed units: D2 is converted to the unit of D1
+      @test basalarea(10u"cm", 4u"inch") ≈ basalarea(10u"cm", 4 * 2.54u"cm")
+      @test unit(basalarea(12u"inch", 10u"inch")) == u"ft^2"
+      @test_throws DomainError basalarea(30, -25)
+      @test_throws DomainError basalarea(-30u"cm", 25u"cm")
     end
 
     @testset "Unit Conversion Tests" begin
@@ -66,20 +78,5 @@ using Test
       @test referencevolume(u"m") == u"m^3"
       @test referencevolume(u"inch") == u"ft^3"
       @test referencevolume(u"ft") == u"ft^3"
-    end
-
-    @testset "withunit Tests" begin
-      @test withunit(30.0, u"cm") == 30.0u"cm"
-      @test withunit(30.0u"cm", u"cm") == 30.0u"cm"
-      @test withunit([30.0, 25.0], u"cm") == [30.0, 25.0]u"cm"
-      @test withunit([30.0, 25.0]u"cm", u"cm") == [30.0, 25.0]u"cm"
-      @test withunit(nothing, u"cm") === nothing
-
-      # a vector may mix in `missing`; each entry is promoted individually and
-      # `missing` itself passes through untouched
-      promoted = withunit([30.0, missing, 25.0], u"cm")
-      @test isequal(promoted, [30.0u"cm", missing, 25.0u"cm"])
-      alreadyUnitful = [30.0, missing, 25.0]u"cm"
-      @test withunit(alreadyUnitful, u"cm") === alreadyUnitful
     end
 end
