@@ -1,10 +1,11 @@
 # ForestFoundations
 
 ForestFoundations.jl provides the shared, package-independent foundations used across the
-JuliaForests ecosystem (ForestMensuration.jl, ForestEcology.jl, and future packages).
-It has no forestry-domain assumptions of its own — only unit-safe geometry, DataFrame
-unit round-tripping, and plot-to-population scaling — so every downstream package can
-rely on a single, consistent implementation instead of duplicating it.
+JuliaForests ecosystem (ForestMensuration.jl, ForestInventory.jl, ForestModeling.jl, and
+future packages). It has no forestry-domain assumptions of its own — only unit-safe
+geometry, DataFrame unit round-tripping, and plot-to-population scaling — so every
+downstream package can rely on a single, consistent implementation instead of
+duplicating it.
 
 [![Build Status](https://github.com/JuliaForests/ForestFoundations.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/JuliaForests/ForestFoundations.jl/actions/workflows/CI.yml?query=branch%3Amaster)
 
