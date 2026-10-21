@@ -67,41 +67,23 @@ end
 
 basalarea(D::Length) = basalarea(D, D)
 
-"""
-    basalarea(D::Real)
-    basalarea(D1::Real, D2::Real)
-
-Calculates the cross-sectional area (``g``) of a tree stem from diameters (``D``) given as
-plain numbers, which are assumed to be in **centimeters**.
-
-See [`basalarea(::Length)`](@ref) for the formulas, the elliptical-section method and the
-accuracy notes. Measured at breast height (``1.3`` m, or ``1.37`` m / ``4.5`` ft in North
-America), the result is the tree basal area.
-
-# Arguments
-- `D`: Diameter in **centimeters**. It must be a non-negative value.
-- `D1`, `D2`: Long and short diameters of an elliptical cross section in **centimeters**.
-
-# Returns
-- `Quantity`: Area in **square meters** (`m^2`).
-
-# Examples
-```julia-repl
-julia> basalarea(30)
-0.07068583470577035 m^2
-
-julia> basalarea(36, 25)
-0.07068583470577035 m^2
-```
-"""
-basalarea(D::Real) = basalarea(D * u"cm")
-basalarea(D1::Real, D2::Real) = basalarea(D1 * u"cm", D2 * u"cm")
+# A plain number carries no unit, so there is no `basalarea(::Real)`: assuming a unit
+# (e.g. centimeters) would silently give wrong results for data recorded in other units.
+# Attach the unit explicitly (`basalarea(30u"cm")`) or read it from the column header
+# with `parseunits`.
 
 """
-    removeunits(data::AbstractDataFrame; renamecols::Bool=true)
+    stripunits(data::AbstractDataFrame; renamecols::Bool=true)
 
-Converts a DataFrame containing Unitful quantities into a plain numeric DataFrame.
+Converts a DataFrame containing Unitful quantities into a plain numeric DataFrame,
+moving each column's unit into its header (`d` with values in `cm` becomes `d (cm)`).
+This is the format for saving results to CSV/Excel; [`parseunits`](@ref) is the inverse.
 Safely ignores dimensionless data (NoUnits) preventing empty parentheses.
+
+# Header convention
+`name (unit)`, with the unit written as Unitful parses it (`m^2`, `m^3`, `ha`, `inch`).
+Each column must hold a single unit: convert mixed-unit columns first, e.g.
+`df.d = uconvert.(u"cm", df.d)`.
 
 # Arguments
 - `data::AbstractDataFrame`: The input DataFrame containing columns with physical units.
@@ -109,8 +91,19 @@ Safely ignores dimensionless data (NoUnits) preventing empty parentheses.
 
 # Returns
 - `DataFrame`: A new DataFrame with plain numeric types, ready for export.
+
+# Examples
+```julia-repl
+julia> stripunits(DataFrame(d=[30.0, 25.0]u"cm"))
+2×1 DataFrame
+ Row │ d (cm)
+     │ Float64
+─────┼─────────
+   1 │    30.0
+   2 │    25.0
+```
 """
-function removeunits(data::AbstractDataFrame; renamecols::Bool=true)
+function stripunits(data::AbstractDataFrame; renamecols::Bool=true)
     dataClean = copy(data)
 
     for colname in names(dataClean)
@@ -134,18 +127,36 @@ function removeunits(data::AbstractDataFrame; renamecols::Bool=true)
 end
 
 """
-    restoreunits(data::AbstractDataFrame)
+    parseunits(data::AbstractDataFrame)
 
-Restores Unitful quantities to a plain DataFrame by parsing unit strings located in the column headers.
+Reads the units declared in the column headers (`name (unit)`) and attaches them to the
+values, returning a DataFrame of Unitful quantities with the plain names (`d (cm)` becomes
+`d` with values in `cm`). Use it on any tabular input — raw field data or a table saved
+with [`stripunits`](@ref), of which it is the inverse.
 Safely evaluates mathematical expressions (e.g., m^3) inside the Unitful module scope.
 
+# Header convention
+`name (unit)`, with the unit written as Unitful parses it (`m^2`, `m^3`, `ha`, `inch`).
+Headers whose unit cannot be parsed (e.g. `m²`) are left unchanged with a warning.
+
 # Arguments
-- `data::AbstractDataFrame`: The input DataFrame, typically loaded from a CSV file.
+- `data::AbstractDataFrame`: The input DataFrame, typically loaded from a CSV or Excel file.
 
 # Returns
-- `DataFrame`: A DataFrame with restored Unitful quantities.
+- `DataFrame`: A DataFrame with Unitful quantities in the columns that declare a unit.
+
+# Examples
+```julia-repl
+julia> parseunits(DataFrame("d (cm)" => [30.0, 25.0]))
+2×1 DataFrame
+ Row │ d
+     │ Quantity…
+─────┼───────────
+   1 │   30.0 cm
+   2 │   25.0 cm
+```
 """
-function restoreunits(data::AbstractDataFrame)
+function parseunits(data::AbstractDataFrame)
     dataRestored = copy(data)
 
     # Regular expression to capture the base name and the unit inside parentheses
@@ -252,19 +263,18 @@ ft^3
 referencevolume(u::Units) = u isa ImperialUnits ? u"ft^3" : u"m^3"
 
 """
-    expansionfactor(u::Units, area::Area)
-    expansionfactor(x::Quantity, area::Area)
-    expansionfactor(x::AbstractVector{<:Quantity}, area::Area)
+    expansionfactor(area::Area)
 
 Calculates the expansion factor (EF) used to scale a per-plot count or sum (e.g., number
-of trees, basal area) to a per-unit-area rate (trees/ha, m²/ha, trees/ac, ft²/ac, ...).
-The reference area (`ha` or `ac`) is chosen automatically from the measurement system,
-detected from a length unit, a length quantity, or a vector of length quantities.
+of trees, basal area) to a per-unit-area rate (trees/ha, m²/ha, trees/ac, ft²/ac, ...):
+the inverse of the sampled area expressed in its reference area.
+
+The reference area follows [`referencearea(::Area)`](@ref): acres (`ac`) when `area` is
+given in acres, hectares (`ha`) otherwise (any other metric area unit, e.g. `m^2`, is
+converted to hectares).
 
 # Arguments
-- `u`/`x`: A length unit, a length quantity, or a vector of length quantities. Only used
-  to detect whether the metric or imperial system is in use; its magnitude is ignored.
-- `area::Area`: The total sampled area.
+- `area::Area`: The sampled area (e.g., the plot area).
 
 # Returns
 - `Quantity`: The expansion factor, in `ha^-1` or `ac^-1`.
@@ -272,19 +282,11 @@ detected from a length unit, a length quantity, or a vector of length quantities
 # Examples
 
 ```julia-repl
-julia> expansionfactor(u"cm", 500u"m^2")
+julia> expansionfactor(500u"m^2")
 20.0 ha^-1
 
-julia> expansionfactor(30u"cm", 500u"m^2")
-20.0 ha^-1
-
-julia> expansionfactor([30u"cm", 25u"cm"], 500u"m^2")
-20.0 ha^-1
-
-julia> expansionfactor(12u"inch", 0.1u"ac")
+julia> expansionfactor(0.1u"ac")
 10.0 ac^-1
 ```
 """
-expansionfactor(u::Units, area::Area) = inv(uconvert(referencearea(u), area))
-expansionfactor(x::Quantity, area::Area) = expansionfactor(unit(x), area)
-expansionfactor(x::AbstractVector{<:Quantity}, area::Area) = expansionfactor(unit(first(x)), area)
+expansionfactor(area::Area) = inv(uconvert(referencearea(area), area))

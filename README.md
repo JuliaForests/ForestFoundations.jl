@@ -38,9 +38,18 @@ and re-exports the pieces every forestry calculation needs (`@u_str`, `unit`, `u
   area, ...) to a per-unit-area rate (trees/ha, m²/ha, trees/ac, ft²/ac, ...),
   automatically choosing hectares or acres from the measurement system.
 
-- **DataFrame unit round-trip (`removeunits`, `restoreunits`):**
+- **DataFrame unit round-trip (`stripunits`, `parseunits`):**
   Converts a `DataFrame` of `Unitful` quantities into plain numeric columns (with the
-  unit recorded in the column name) for export to CSV/Excel, and back.
+  unit recorded in the column name) for export to CSV/Excel, and reads the units declared
+  in the headers of any table (raw field data or exported results) back into quantities.
+
+## Units are always explicit
+
+Every quantity carries its unit. Functions take `Unitful` quantities, never plain numbers
+with an assumed unit: `basalarea(30u"cm")` works, `basalarea(30)` is a `MethodError`.
+Tabular data declares one unit per column in the header, as `name (unit)` written the
+way Unitful parses it (`DAP (cm)`, `h (m)`, `g (m^2)`, `area (ha)`), and `parseunits`
+attaches it when the table is read.
 
 ## Example Usage
 
@@ -51,10 +60,6 @@ using ForestFoundations
 
 # metric diameter in cm -> basal area in m^2
 julia> basalarea(30u"cm")
-0.07068583470577035 m^2
-
-# a plain number is assumed to be centimeters
-julia> basalarea(30)
 0.07068583470577035 m^2
 
 # imperial diameter in inches -> basal area in ft^2
@@ -74,11 +79,11 @@ julia> referencearea(u"inch")
 ac
 
 # a 500 m^2 plot expands to 20 trees/ha for every tree counted
-julia> expansionfactor(30u"cm", 500.0u"m^2")
+julia> expansionfactor(500.0u"m^2")
 20.0 ha^-1
 
 # a 0.1 ac plot expands to 10 trees/ac for every tree counted
-julia> expansionfactor(12u"inch", 0.1u"ac")
+julia> expansionfactor(0.1u"ac")
 10.0 ac^-1
 ```
 
@@ -96,7 +101,7 @@ julia> data = DataFrame(id=[1, 2], d=[30.0, 25.0]u"cm", v=[0.5, 0.3]u"m^3")
    2 │     2    25.0 cm    0.3 m^3
 
 # ready for CSV export: units moved into the column names
-julia> clean = removeunits(data)
+julia> clean = stripunits(data)
 2×3 DataFrame
  Row │ id     d (cm)   v (m^3)
      │ Int64  Float64  Float64
@@ -105,7 +110,7 @@ julia> clean = removeunits(data)
    2 │     2     25.0      0.3
 
 # and back to Unitful quantities, e.g. after loading a CSV
-julia> restoreunits(clean)
+julia> parseunits(clean)
 2×3 DataFrame
  Row │ id     d          v
      │ Int64  Quantity…  Quantity…
@@ -113,6 +118,17 @@ julia> restoreunits(clean)
    1 │     1    30.0 cm    0.5 m^3
    2 │     2    25.0 cm    0.3 m^3
 ```
+
+Saving and reading a CSV:
+
+```julia
+using CSV
+CSV.write("results.csv", stripunits(df))              # d (cm) | 30.0, 25.0
+df = parseunits(CSV.read("results.csv", DataFrame))   # d | 30.0 cm, 25.0 cm
+```
+
+`removeunits` and `restoreunits`, the former names of these functions, still work but are
+deprecated.
 
 ## Keywords
 
