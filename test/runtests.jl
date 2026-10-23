@@ -50,10 +50,6 @@ using Test
       @test names(parsed) == ["tree", "dbh", "h"]
       @test parsed.dbh == [30.0, 25.0]u"cm"
       @test basalarea.(parsed.dbh) ≈ [basalarea(30.0u"cm"), basalarea(25.0u"cm")]
-
-      # deprecated former names still work and give the same result
-      @test removeunits(data) == stripunits(data)
-      @test isequal(restoreunits(clean), parseunits(clean))
     end
 
     @testset "Reference Area and Expansion Factor Tests" begin

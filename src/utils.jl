@@ -76,14 +76,16 @@ basalarea(D::Length) = basalarea(D, D)
     stripunits(data::AbstractDataFrame; renamecols::Bool=true)
 
 Converts a DataFrame containing Unitful quantities into a plain numeric DataFrame,
-moving each column's unit into its header (`d` with values in `cm` becomes `d (cm)`).
+moving each column's unit into its header (`D` with values in `cm` becomes `D (cm)`).
 This is the format for saving results to CSV/Excel; [`parseunits`](@ref) is the inverse.
 Safely ignores dimensionless data (NoUnits) preventing empty parentheses.
 
 # Header convention
 `name (unit)`, with the unit written as Unitful parses it (`m^2`, `m^3`, `ha`, `inch`).
+Column names follow the symbology of Silva et al. (2022): `D` for the diameter at 1.30 m,
+`H` for the total height, `g` for the basal area and `v` for the volume of the tree.
 Each column must hold a single unit: convert mixed-unit columns first, e.g.
-`df.d = uconvert.(u"cm", df.d)`.
+`df.D = uconvert.(u"cm", df.D)`.
 
 # Arguments
 - `data::AbstractDataFrame`: The input DataFrame containing columns with physical units.
@@ -94,13 +96,17 @@ Each column must hold a single unit: convert mixed-unit columns first, e.g.
 
 # Examples
 ```julia-repl
-julia> stripunits(DataFrame(d=[30.0, 25.0]u"cm"))
-2×1 DataFrame
- Row │ d (cm)
-     │ Float64
-─────┼─────────
-   1 │    30.0
-   2 │    25.0
+julia> data = DataFrame(D=[30.0, 25.0, 18.5]u"cm", H=[22.4, 20.1, 16.8]u"m",
+                       v=[0.7012, 0.4825, 0.2194]u"m^3");
+
+julia> stripunits(data)
+3×3 DataFrame
+ Row │ D (cm)   H (m)    v (m^3)
+     │ Float64  Float64  Float64
+─────┼───────────────────────────
+   1 │    30.0     22.4   0.7012
+   2 │    25.0     20.1   0.4825
+   3 │    18.5     16.8   0.2194
 ```
 """
 function stripunits(data::AbstractDataFrame; renamecols::Bool=true)
@@ -130,8 +136,8 @@ end
     parseunits(data::AbstractDataFrame)
 
 Reads the units declared in the column headers (`name (unit)`) and attaches them to the
-values, returning a DataFrame of Unitful quantities with the plain names (`d (cm)` becomes
-`d` with values in `cm`). Use it on any tabular input — raw field data or a table saved
+values, returning a DataFrame of Unitful quantities with the plain names (`D (cm)` becomes
+`D` with values in `cm`). Use it on any tabular input — raw field data or a table saved
 with [`stripunits`](@ref), of which it is the inverse.
 Safely evaluates mathematical expressions (e.g., m^3) inside the Unitful module scope.
 
@@ -147,13 +153,17 @@ Headers whose unit cannot be parsed (e.g. `m²`) are left unchanged with a warni
 
 # Examples
 ```julia-repl
-julia> parseunits(DataFrame("d (cm)" => [30.0, 25.0]))
-2×1 DataFrame
- Row │ d
-     │ Quantity…
-─────┼───────────
-   1 │   30.0 cm
-   2 │   25.0 cm
+julia> field = DataFrame("D (cm)" => [30.0, 25.0, 18.5], "H (m)" => [22.4, 20.1, 16.8],
+                         "v (m^3)" => [0.7012, 0.4825, 0.2194]);
+
+julia> parseunits(field)
+3×3 DataFrame
+ Row │ D          H          v
+     │ Quantity…  Quantity…  Quantity…
+─────┼──────────────────────────────────
+   1 │   30.0 cm     22.4 m  0.7012 m^3
+   2 │   25.0 cm     20.1 m  0.4825 m^3
+   3 │   18.5 cm     16.8 m  0.2194 m^3
 ```
 """
 function parseunits(data::AbstractDataFrame)
