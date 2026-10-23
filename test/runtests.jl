@@ -85,4 +85,36 @@ using Test
       @test referencevolume(u"inch") == u"ft^3"
       @test referencevolume(u"ft") == u"ft^3"
     end
+
+    @testset "In Reference Volume Tests" begin
+      a = basalarea(30.0u"cm")
+
+      # the raw product keeps a mixed unit; the conversion makes it coherent
+      @test unit(a * 300.0u"cm") != u"m^3"
+      @test unit(inreferencevolume(a * 300.0u"cm", 30.0u"cm")) == u"m^3"
+      @test ustrip(inreferencevolume(a * 300.0u"cm", 30.0u"cm")) ≈ 0.07068583470577035 * 3 atol = 1e-12
+
+      # squared diameter times height
+      v = (π / 4) * abs2(30.0u"cm") * 0.15u"m"
+      @test unit(inreferencevolume(v, u"cm")) == u"m^3"
+      @test ustrip(inreferencevolume(v, u"cm")) ≈ 0.010602875205865558 atol = 1e-12
+
+      # imperial system
+      vimp = (π / 4) * abs2(12.0u"inch") * 0.5u"ft"
+      @test unit(inreferencevolume(vimp, u"inch")) == u"ft^3"
+      @test ustrip(inreferencevolume(vimp, u"inch")) ≈ 0.39269908169872414 atol = 1e-12
+
+      # the length unit decides the system, whatever the units of the other factors
+      vmixed = basalarea(30.0u"cm") * 10.0u"ft"
+      @test unit(inreferencevolume(vmixed, 30.0u"cm")) == u"m^3"
+      @test ustrip(inreferencevolume(vmixed, 30.0u"cm")) ≈ 0.07068583470577035 * 3.048 atol = 1e-12
+      @test unit(inreferencevolume(vmixed, 12.0u"inch")) == u"ft^3"
+
+      # the Length method only reads the unit of d, never its value
+      @test inreferencevolume(v, 1.0u"cm") == inreferencevolume(v, 99.0u"cm")
+
+      # an already coherent volume is unchanged, and a plain number is rejected
+      @test inreferencevolume(2.0u"m^3", u"cm") == 2.0u"m^3"
+      @test_throws MethodError inreferencevolume(2.0, u"cm")
+    end
 end

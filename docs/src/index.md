@@ -30,6 +30,9 @@ extend its functions through Julia's multiple dispatch, without modifying it.
 - **Reference units** ([`referencearea`](@ref), [`referencevolume`](@ref)): the natural
   area (`ha` or `ac`) and volume (`m^3` or `ft^3`) of the measurement system that a
   length unit belongs to.
+- **Coherent volumes** ([`inreferencevolume`](@ref)): expresses a volume obtained as a
+  product of areas and lengths (`cm m^2`, `ft inch^2`, ...) in the reference volume of
+  the system of a length unit, so that volumes can be summed and compared.
 - **Measurement-system detection** (`ImperialUnits`): a `Union` of the imperial length
   units (`inch`, `ft`, `yd`, `mi`), used across the ecosystem to pick the output unit from
   the input unit alone.
@@ -123,6 +126,15 @@ julia> basalarea(11.8u"inch")          # imperial diameter -> ft^2
 
 julia> basalarea(36u"cm", 25u"cm")     # elliptical section, two caliper readings
 0.07068583470577035 m^2
+
+julia> v = basalarea(30u"cm") * 300.0u"cm"   # area times length keeps a mixed unit
+21.205750411731103 cm m^2
+
+julia> inreferencevolume(v, u"cm")     # metric system -> m^3
+0.21205750411731103 m^3
+
+julia> inreferencevolume(basalarea(12.0u"inch") * 6.0u"inch", u"inch")   # imperial -> ft^3
+0.39269908169872414 ft^3
 
 julia> expansionfactor(500u"m^2")      # each tree in a 500 m^2 plot represents 20 trees/ha
 20.0 ha^-1

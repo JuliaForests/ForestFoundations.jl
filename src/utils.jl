@@ -273,6 +273,51 @@ ft^3
 referencevolume(u::Units) = u isa ImperialUnits ? u"ft^3" : u"m^3"
 
 """
+    inreferencevolume(v::Volume, u::Units)
+    inreferencevolume(v::Volume, d::Length)
+
+Expresses a volume `v` in the reference volume unit of the measurement system given by a
+length unit `u` (or by the unit of a length `d`): cubic meters (`m^3`) for the metric
+system, cubic feet (`ft^3`) for the imperial system. See [`referencevolume`](@ref).
+
+Unitful does not simplify units when quantities are multiplied, so a volume computed as an
+area times a length, or from a squared diameter times a height, keeps whatever mix of units
+its operands had (`cm m^2`, `cm^2 m`, `ft inch^2`, ...). Such a value is dimensionally a
+volume but is not a coherent one, and it cannot be summed or compared with other volumes
+without a conversion. This function performs that conversion.
+
+# Arguments
+- `v`: A volume, typically the raw product of areas and lengths.
+- `u`: A length unit, such as `unit(30u"cm")` or `u"inch"`. Its system defines the output
+  unit.
+- `d`: A length quantity. Only its unit is used, never its value, so the system is decided
+  by `d` regardless of the units of the other factors in `v` (e.g. a metric diameter with a
+  length in feet yields `m^3`).
+
+# Returns
+- `Quantity`: `v` in `ft^3` if the length unit is imperial, or in `m^3` otherwise.
+
+# Examples
+
+```julia-repl
+julia> a = basalarea(30u"cm")
+0.07068583470577035 m^2
+
+julia> a * 300.0u"cm"
+21.205750411731103 cm m^2
+
+julia> inreferencevolume(a * 300.0u"cm", 30u"cm")
+0.21205750411731103 m^3
+
+julia> inreferencevolume((π / 4) * abs2(12.0u"inch") * 0.5u"ft", u"inch")
+0.39269908169872414 ft^3
+```
+"""
+inreferencevolume(v::Volume, u::Units) = uconvert(referencevolume(u), v)
+
+inreferencevolume(v::Volume, d::Length) = inreferencevolume(v, unit(d))
+
+"""
     expansionfactor(area::Area)
 
 Calculates the expansion factor (EF) used to scale a per-plot count or sum (e.g., number
