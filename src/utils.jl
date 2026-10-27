@@ -1,18 +1,15 @@
 """
-    basalarea(D::Length)
-    basalarea(D1::Length, D2::Length)
+    basalarea(d::Length)
 
 Calculates the cross-sectional area (``g``) of a tree stem from its diameter (``D``).
 Measured at breast height, this is the tree basal area.
 
 # Arguments
-- `D`: Diameter as a unitful quantity, e.g. `10u"cm"` or `12u"inch"`. A diameter tape
+- `d`: Diameter as a unitful quantity, e.g. `10u"cm"` or `12u"inch"`. A diameter tape
   reading already is a diameter (the tape is graduated in ``\\pi`` units), so it can be
   passed as is; a raw circumference ``C`` must be converted first with ``D = C / \\pi``.
-- `D1`, `D2`: Long and short diameters (axes) of an elliptical cross section, taken with
-  calipers. They may be given in different length units; `D2` is converted to the unit of `D1`.
 
-All diameters must be non-negative values.
+The diameter must be a non-negative value.
 
 # Returns
 - `Quantity`: Area in square feet (`ft^2`) if the input is imperial, or square meters (`m^2`) otherwise.
@@ -22,19 +19,11 @@ For a circular cross section the area follows from the diameter:
 ```math
 g = \\frac{\\pi D^2}{4}
 ```
-For an elliptical cross section with long and short diameters ``D_1`` and ``D_2``, the
-exact area is obtained with the geometric mean diameter ``\\sqrt{D_1 D_2}``, which gives:
-```math
-g = \\frac{\\pi D_1 D_2}{4}
-```
-The one-argument method is the case ``D_1 = D_2 = D``.
 
 # Accuracy note
 Most stems are not perfectly circular. A diameter tape slightly overestimates the true
 area, because the circle is the geometric figure with the smallest perimeter for a given
-area. With calipers, the geometric mean of the long and short diameters is the best
-practice for elliptical sections; the arithmetic mean overestimates the area (about 4% at
-a 3:2 axis ratio and 13% at 2:1), so it is not offered here.
+area.
 
 # Examples
 
@@ -44,28 +33,22 @@ julia> basalarea(30u"cm")
 
 julia> basalarea(11.8u"inch")
 0.7594363907740328 ft^2
-
-julia> basalarea(36u"cm", 25u"cm")
-0.07068583470577035 m^2
 ```
 
 # References
 Kershaw Jr., Ducey, Beers & Hush (2020). *Forest Mensuration*, 5th ed., Section 5.2.3.
 """
-function basalarea(D1::Length, D2::Length)
-    (ustrip(D1) < 0 || ustrip(D2) < 0) &&
-        throw(DomainError((D1, D2), "The diameter must be a non-negative value, observed values are $D1 and $D2"))
+function basalarea(d::Length)
+  ustrip(d) < 0 && throw(DomainError(d, "The diameter must be a non-negative value, observed value is $d"))
 
-    g = quartπ * D1 * uconvert(unit(D1), D2)
+  g = quartπ * abs2(d)
 
-    if unit(D1) isa ImperialUnits
-        return uconvert(u"ft^2", g)
-    else
-        return uconvert(u"m^2", g)
-    end
+  if unit(d) isa ImperialUnits
+    return uconvert(u"ft^2", g)
+  else
+    return uconvert(u"m^2", g)
+  end
 end
-
-basalarea(D::Length) = basalarea(D, D)
 
 # A plain number carries no unit, so there is no `basalarea(::Real)`: assuming a unit
 # (e.g. centimeters) would silently give wrong results for data recorded in other units.
@@ -82,7 +65,7 @@ Safely ignores dimensionless data (NoUnits) preventing empty parentheses.
 
 # Header convention
 `name (unit)`, with the unit written as Unitful parses it (`m^2`, `m^3`, `ha`, `inch`).
-Column names follow the symbology of Silva et al. (2022): `D` for the diameter at 1.30 m,
+Column names follow the symbology of Silva et al. (2022): `D` for the diameter at breast height,
 `H` for the total height, `g` for the basal area and `v` for the volume of the tree.
 Each column must hold a single unit: convert mixed-unit columns first, e.g.
 `df.D = uconvert.(u"cm", df.D)`.
@@ -110,26 +93,26 @@ julia> stripunits(data)
 ```
 """
 function stripunits(data::AbstractDataFrame; renamecols::Bool=true)
-    dataClean = copy(data)
+  dataClean = copy(data)
 
-    for colname in names(dataClean)
-        col = dataClean[!, colname]
-        T = nonmissingtype(eltype(col))
+  for colname in names(dataClean)
+    col = dataClean[!, colname]
+    T = nonmissingtype(eltype(col))
 
-        if T <: Quantity
-            u = unit(T)
-            # Skip renaming if the column is dimensionless (NoUnits)
-            if renamecols && u != NoUnits
-                newname = "$(colname) ($(u))"
-                rename!(dataClean, colname => newname)
-                dataClean[!, newname] = ustrip.(col)
-            else
-                dataClean[!, colname] = ustrip.(col)
-            end
-        end
+    if T <: Quantity
+      u = unit(T)
+      # Skip renaming if the column is dimensionless (NoUnits)
+      if renamecols && u != NoUnits
+        newname = "$(colname) ($(u))"
+        rename!(dataClean, colname => newname)
+        dataClean[!, newname] = ustrip.(col)
+      else
+        dataClean[!, colname] = ustrip.(col)
+      end
     end
+  end
 
-    return dataClean
+  return dataClean
 end
 
 """
@@ -167,40 +150,40 @@ julia> parseunits(field)
 ```
 """
 function parseunits(data::AbstractDataFrame)
-    dataRestored = copy(data)
+  dataRestored = copy(data)
 
-    # Regular expression to capture the base name and the unit inside parentheses
-    regex = r"^(.*?)\s*\((.*?)\)$"
+  # Regular expression to capture the base name and the unit inside parentheses
+  regex = r"^(.*?)\s*\((.*?)\)$"
 
-    for colname in names(dataRestored)
-        m = match(regex, colname)
+  for colname in names(dataRestored)
+    m = match(regex, colname)
 
-        if m !== nothing
-            basename = strip(m.captures[1])
-            unitstr = strip(m.captures[2])
+    if m !== nothing
+      basename = strip(m.captures[1])
+      unitstr = strip(m.captures[2])
 
-            # Handle cases where the parentheses were inadvertently empty
-            if unitstr == ""
-                rename!(dataRestored, colname => basename)
-                continue
-            end
+      # Handle cases where the parentheses were inadvertently empty
+      if unitstr == ""
+        rename!(dataRestored, colname => basename)
+        continue
+      end
 
-            try
-                # uparse can return an expression (e.g., for "m^3").
-                # Core.eval evaluates this expression safely inside the Unitful context.
-                u = Core.eval(Unitful, Unitful.uparse(unitstr))
+      try
+        # uparse can return an expression (e.g., for "m^3").
+        # Core.eval evaluates this expression safely inside the Unitful context.
+        u = Core.eval(Unitful, Unitful.uparse(unitstr))
 
-                rename!(dataRestored, colname => basename)
-                dataRestored[!, basename] = dataRestored[!, basename] .* u
-            catch e
-                # Formats the warning outside the macro to prevent scope interpolation bugs
-                msg = "Could not parse unit '$(unitstr)' in column '$(colname)'. Error: $e"
-                @warn msg
-            end
-        end
+        rename!(dataRestored, colname => basename)
+        dataRestored[!, basename] = dataRestored[!, basename] .* u
+      catch e
+        # Formats the warning outside the macro to prevent scope interpolation bugs
+        msg = "Could not parse unit '$(unitstr)' in column '$(colname)'. Error: $e"
+        @warn msg
+      end
     end
+  end
 
-    return dataRestored
+  return dataRestored
 end
 
 """
@@ -303,13 +286,16 @@ without a conversion. This function performs that conversion.
 julia> a = basalarea(30u"cm")
 0.07068583470577035 m^2
 
-julia> a * 300.0u"cm"
+julia> v = a * 300.0u"cm"
 21.205750411731103 cm m^2
 
-julia> inreferencevolume(a * 300.0u"cm", 30u"cm")
+julia> inreferencevolume(v, 30u"cm")
 0.21205750411731103 m^3
 
-julia> inreferencevolume((π / 4) * abs2(12.0u"inch") * 0.5u"ft", u"inch")
+julia> v = basalarea(12.0u"inch") * 0.5u"ft"
+0.39269908169872414 ft^3
+
+julia> inreferencevolume(v, u"inch")
 0.39269908169872414 ft^3
 ```
 """
@@ -332,7 +318,10 @@ converted to hectares).
 - `area::Area`: The sampled area (e.g., the plot area).
 
 # Returns
-- `Quantity`: The expansion factor, in `ha^-1` or `ac^-1`.
+- `Quantity`: The expansion factor, in `ha^-1` or `ac^-1`. It is always a floating-point
+  quantity, even when `area` is given as an integer (`500u"m^2"` and `500.0u"m^2"` give the
+  same result): the area is converted to `Float64` before the unit conversion, since Unitful
+  would otherwise convert an integer exactly and return a `Rational` (`20//1 ha^-1`).
 
 # Examples
 
@@ -344,4 +333,4 @@ julia> expansionfactor(0.1u"ac")
 10.0 ac^-1
 ```
 """
-expansionfactor(area::Area) = inv(uconvert(referencearea(area), area))
+expansionfactor(area::Area) = inv(uconvert(referencearea(area), float(area)))

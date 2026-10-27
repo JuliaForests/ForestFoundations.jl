@@ -93,7 +93,7 @@ julia> expansionfactor(0.1u"ac")
 
 ### DataFrame Unit Round-Trip
 
-Column names follow the symbology of Silva et al. (2022): `D` diameter at 1.30 m, `H` total
+Column names follow the symbology of Silva et al. (2022): `D` diameter at breast height, `H` total
 height, `v` tree volume.
 
 ```julia-repl

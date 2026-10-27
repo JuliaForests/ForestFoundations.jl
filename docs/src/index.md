@@ -22,8 +22,7 @@ extend its functions through Julia's multiple dispatch, without modifying it.
 
 - **Basal area** ([`basalarea`](@ref)): the cross-sectional area of the stem, which,
   measured at breast height, is the basal area of the tree (Kershaw Jr. et al., 2017,
-  p. 104). It accepts a single diameter or the long and short diameters of an elliptical
-  section.
+  p. 104).
 - **Expansion factor** ([`expansionfactor`](@ref)): the ratio between the unit of area and
   the area of the sampling unit. It converts per-plot counts and sums to per-hectare or
   per-acre values (Kershaw Jr. et al., 2017, p. 274).
@@ -97,7 +96,7 @@ Assuming a unit (centimeters, for instance) would give silently wrong results fo
 recorded in another one. Tabular data declares one unit per column in the header, as
 `name (unit)` written the way Unitful parses it (`D (cm)`, `H (m)`, `g (m^2)`,
 `v (m^3)`), and [`parseunits`](@ref) attaches it when the table is read. Column names follow
-the same symbology: `D` for the diameter at 1.30 m, `H` for the total height, `g` and `v`
+the same symbology: `D` for the diameter at breast height, `H` for the total height, `g` and `v`
 for the basal area and volume of the tree.
 
 ### No intermediate rounding
@@ -123,9 +122,6 @@ julia> basalarea(30u"cm")              # metric diameter -> m^2
 
 julia> basalarea(11.8u"inch")          # imperial diameter -> ft^2
 0.7594363907740328 ft^2
-
-julia> basalarea(36u"cm", 25u"cm")     # elliptical section, two caliper readings
-0.07068583470577035 m^2
 
 julia> v = basalarea(30u"cm") * 300.0u"cm"   # area times length keeps a mixed unit
 21.205750411731103 cm m^2
