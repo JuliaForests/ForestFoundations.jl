@@ -20,9 +20,10 @@ extend its functions through Julia's multiple dispatch, without modifying it.
 
 ## Key features
 
-- **Basal area** ([`basalarea`](@ref)): the cross-sectional area of the stem, which,
-  measured at breast height, is the basal area of the tree (Kershaw Jr. et al., 2017,
-  p. 104).
+- **Sectional area** ([`sectionalarea`](@ref)): the area ``a`` of the circular cross
+  section of the stem at any height; with the diameter at breast height ``D`` it is the
+  basal area of the tree ``g``
+  (Silva et al., 2022; Kershaw Jr. et al., 2017, p. 104).
 - **Expansion factor** ([`expansionfactor`](@ref)): the ratio between the unit of area and
   the area of the sampling unit. It converts per-plot counts and sums to per-hectare or
   per-acre values (Kershaw Jr. et al., 2017, p. 274).
@@ -32,8 +33,9 @@ extend its functions through Julia's multiple dispatch, without modifying it.
 - **Coherent volumes** ([`inreferencevolume`](@ref)): expresses a volume obtained as a
   product of areas and lengths (`cm m^2`, `ft inch^2`, ...) in the reference volume of
   the system of a length unit, so that volumes can be summed and compared.
-- **Measurement-system detection** (`ImperialUnits`): a `Union` of the imperial length
-  units (`inch`, `ft`, `yd`, `mi`), used across the ecosystem to pick the output unit from
+- **Measurement-system detection** (`ImperialUnits`): a `Union` of the imperial units of
+  length (`inch`, `ft`, `yd`, `mi`), their squares and cubes (`ft^2`, `ft^3`, ...) and the
+  acre (`ac`), used across the ecosystem to pick the output unit from
   the input unit alone.
 - **Tables with units** ([`stripunits`](@ref), [`parseunits`](@ref)): moves the unit of
   each `DataFrame` column into its header for CSV/Excel export, and reads it back from
@@ -78,10 +80,10 @@ every function accepts metric or imperial values through
 [Unitful.jl](https://github.com/JuliaPhysics/Unitful.jl), and **the input unit defines the
 output unit**:
 
-| Input                          | `basalarea` | `expansionfactor` | `referencearea` | `referencevolume` |
-| :----------------------------- | :---------- | :---------------- | :-------------- | :---------------- |
-| metric (`cm`, `m`, `m^2`, ...) | `m^2`       | `ha^-1`           | `ha`            | `m^3`             |
-| imperial (`inch`, `ft`, `ac`)  | `ft^2`      | `ac^-1`           | `ac`            | `ft^3`            |
+| Input                                 | `sectionalarea` | `expansionfactor` | `referencearea` | `referencevolume` |
+| :------------------------------------ | :-------------- | :---------------- | :-------------- | :---------------- |
+| metric (`cm`, `m`, `m^2`, ...)        | `m^2`           | `ha^-1`           | `ha`            | `m^3`             |
+| imperial (`inch`, `ft`, `ft^2`, `ac`) | `ft^2`          | `ac^-1`           | `ac`            | `ft^3`            |
 
 In the imperial system, ``g = \pi D^2 / 4`` with ``D`` in inches and ``g`` in square feet
 reduces to the familiar constant ``g = 0.005454 D^2``, against ``\pi / 40000`` for
@@ -91,7 +93,7 @@ unit conversions applied to ``g = \pi D^2 / 4``, which Unitful performs automati
 ### Units are always explicit
 
 Every quantity carries its unit. Functions take `Unitful` quantities, never plain numbers
-with an assumed unit: `basalarea(30u"cm")` works, `basalarea(30)` is a `MethodError`.
+with an assumed unit: `sectionalarea(30u"cm")` works, `sectionalarea(30)` is a `MethodError`.
 Assuming a unit (centimeters, for instance) would give silently wrong results for data
 recorded in another one. Tabular data declares one unit per column in the header, as
 `name (unit)` written the way Unitful parses it (`D (cm)`, `H (m)`, `g (m^2)`,
@@ -117,19 +119,19 @@ Pkg.add("ForestFoundations")
 ```julia-repl
 julia> using ForestFoundations
 
-julia> basalarea(30u"cm")              # metric diameter -> m^2
+julia> sectionalarea(30u"cm")              # metric diameter -> m^2
 0.07068583470577035 m^2
 
-julia> basalarea(11.8u"inch")          # imperial diameter -> ft^2
+julia> sectionalarea(11.8u"inch")          # imperial diameter -> ft^2
 0.7594363907740328 ft^2
 
-julia> v = basalarea(30u"cm") * 300.0u"cm"   # area times length keeps a mixed unit
+julia> v = sectionalarea(30u"cm") * 300.0u"cm"   # area times length keeps a mixed unit
 21.205750411731103 cm m^2
 
 julia> inreferencevolume(v, u"cm")     # metric system -> m^3
 0.21205750411731103 m^3
 
-julia> inreferencevolume(basalarea(12.0u"inch") * 6.0u"inch", u"inch")   # imperial -> ft^3
+julia> inreferencevolume(sectionalarea(12.0u"inch") * 6.0u"inch", u"inch")   # imperial -> ft^3
 0.39269908169872414 ft^3
 
 julia> expansionfactor(500u"m^2")      # each tree in a 500 m^2 plot represents 20 trees/ha
@@ -160,7 +162,7 @@ julia> data = parseunits(field)
    2 │   25.0 cm     20.1 m  0.4825 m^3
    3 │   18.5 cm     16.8 m  0.2194 m^3
 
-julia> basalarea.(data.D)
+julia> sectionalarea.(data.D)
 3-element Vector{Quantity{Float64, 𝐋^2, Unitful.FreeUnits{(m^2,), 𝐋^2, nothing}}}:
  0.07068583470577035 m^2
  0.049087385212340524 m^2

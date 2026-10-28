@@ -29,13 +29,16 @@ and re-exports the pieces every forestry calculation needs (`@u_str`, `unit`, `u
 `uconvert`, and the `Length`/`Area`/`Volume`/`Mass` quantity types), plus:
 
 - **Metric/imperial detection (`ImperialUnits`):**
-  A trait-like `Union` of imperial length units (`inch`, `ft`, `yd`, `mi`) used
+  A trait-like `Union` of imperial units (lengths `inch`, `ft`, `yd`, `mi`, their
+  squares and cubes, and `ac`) used
   throughout the ecosystem to automatically pick the right output unit or standard
   (square meters vs. square feet, hectares vs. acres) from the unit of the input alone.
 
-- **Basal area (`basalarea`):**
-  The cross-sectional area of a tree stem at breast height — the single most-used
-  primitive in forest mensuration, computed once here and reused everywhere.
+- **Sectional area (`sectionalarea`):**
+  The area of the circular cross section of a tree stem from its diameter, at any height;
+  with the diameter at breast height (`D`) it is the basal area of the tree (`g`). The
+  single most-used primitive in forest mensuration, computed once here and reused
+  everywhere.
 
 - **Reference area and expansion factor (`referencearea`, `expansionfactor`):**
   Pure unit-conversion arithmetic for scaling a per-plot count or sum (trees, basal
@@ -50,7 +53,7 @@ and re-exports the pieces every forestry calculation needs (`@u_str`, `unit`, `u
 ## Units are always explicit
 
 Every quantity carries its unit. Functions take `Unitful` quantities, never plain numbers
-with an assumed unit: `basalarea(30u"cm")` works, `basalarea(30)` is a `MethodError`.
+with an assumed unit: `sectionalarea(30u"cm")` works, `sectionalarea(30)` is a `MethodError`.
 Tabular data declares one unit per column in the header, as `name (unit)` written the
 way Unitful parses it (`D (cm)`, `H (m)`, `g (m^2)`, `v (m^3)`), and `parseunits`
 attaches it when the table is read.
@@ -63,11 +66,11 @@ attaches it when the table is read.
 using ForestFoundations
 
 # metric diameter in cm -> basal area in m^2
-julia> basalarea(30u"cm")
+julia> sectionalarea(30u"cm")
 0.07068583470577035 m^2
 
 # imperial diameter in inches -> basal area in ft^2
-julia> basalarea(11.8u"inch")
+julia> sectionalarea(11.8u"inch")
 0.7594363907740328 ft^2
 ```
 
@@ -113,7 +116,7 @@ julia> data = parseunits(field)
    2 │   25.0 cm     20.1 m  0.4825 m^3
    3 │   18.5 cm     16.8 m  0.2194 m^3
 
-julia> basalarea.(data.D)
+julia> sectionalarea.(data.D)
 3-element Vector{Quantity{Float64, 𝐋^2, Unitful.FreeUnits{(m^2,), 𝐋^2, nothing}}}:
  0.07068583470577035 m^2
  0.049087385212340524 m^2

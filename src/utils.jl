@@ -1,8 +1,23 @@
-"""
-    basalarea(d::Length)
+# Picks the unit of the measurement system a unit `u` (a length, area or volume) belongs
+# to: `imperial` if `u` is an imperial unit (`ImperialUnits`), `metric` otherwise. The unit
+# is part of the type, so the choice is resolved at compile time.
+systemunit(u::Units, metric::Units, imperial::Units) = u isa ImperialUnits ? imperial : metric
 
-Calculates the cross-sectional area (``g``) of a tree stem from its diameter (``D``).
-Measured at breast height, this is the tree basal area.
+"""
+    sectionalarea(d::Length)
+
+Calculates the sectional area (``a``) of a tree stem from its diameter (``d``): the area of
+the circle of diameter `d`, that is, of the cross section of the stem at the height where
+`d` was measured. The function does not know that height; what the result means depends
+on the diameter passed:
+
+- a diameter at any height of the stem gives the sectional area ``a``;
+- the diameter at breast height ``D`` gives the basal area of the tree ``g``. Breast height
+  is a convention that varies by country: 1.30 m in Brazil, 4.5 ft (1.37 m) in the United
+  States, 1.29 m in many European countries and 1.25 m in Japan (Silva et al., 2022).
+
+The basal area of the stand (``G``) is not computed here: it is the sum of the ``g`` of its
+trees per unit area.
 
 # Arguments
 - `d`: Diameter as a unitful quantity, e.g. `10u"cm"` or `12u"inch"`. A diameter tape
@@ -17,7 +32,7 @@ The diameter must be a non-negative value.
 # Mathematical basis
 For a circular cross section the area follows from the diameter:
 ```math
-g = \\frac{\\pi D^2}{4}
+a = \\frac{\\pi d^2}{4}, \\qquad g = \\frac{\\pi D^2}{4}
 ```
 
 # Accuracy note
@@ -28,32 +43,25 @@ area.
 # Examples
 
 ```julia-repl
-julia> basalarea(30u"cm")
+julia> sectionalarea(30u"cm")
 0.07068583470577035 m^2
 
-julia> basalarea(11.8u"inch")
+julia> sectionalarea(11.8u"inch")
 0.7594363907740328 ft^2
 ```
 
 # References
 Kershaw Jr., Ducey, Beers & Hush (2020). *Forest Mensuration*, 5th ed., Section 5.2.3.
+Silva, G. F. et al. (2022). *Padronização da simbologia em mensuração e manejo florestal*.
+Alegre: Ed. dos Autores, Quadro 3.
 """
-function basalarea(d::Length)
-  ustrip(d) < 0 && throw(DomainError(d, "The diameter must be a non-negative value, observed value is $d"))
+function sectionalarea(d::Length)
+  d < zero(d) && throw(DomainError(d, "The diameter must be a non-negative value, observed value is $d"))
 
   g = quartπ * abs2(d)
 
-  if unit(d) isa ImperialUnits
-    return uconvert(u"ft^2", g)
-  else
-    return uconvert(u"m^2", g)
-  end
+  uconvert(systemunit(unit(d), u"m^2", u"ft^2"), g)
 end
-
-# A plain number carries no unit, so there is no `basalarea(::Real)`: assuming a unit
-# (e.g. centimeters) would silently give wrong results for data recorded in other units.
-# Attach the unit explicitly (`basalarea(30u"cm")`) or read it from the column header
-# with `parseunits`.
 
 """
     stripunits(data::AbstractDataFrame; renamecols::Bool=true)
@@ -80,7 +88,14 @@ Each column must hold a single unit: convert mixed-unit columns first, e.g.
 # Examples
 ```julia-repl
 julia> data = DataFrame(D=[30.0, 25.0, 18.5]u"cm", H=[22.4, 20.1, 16.8]u"m",
-                       v=[0.7012, 0.4825, 0.2194]u"m^3");
+                       v=[0.7012, 0.4825, 0.2194]u"m^3")
+3×3 DataFrame
+ Row │ D          H          v
+     │ Quantity…  Quantity…  Quantity…
+─────┼──────────────────────────────────
+   1 │   30.0 cm     22.4 m  0.7012 m^3
+   2 │   25.0 cm     20.1 m  0.4825 m^3
+   3 │   18.5 cm     16.8 m  0.2194 m^3
 
 julia> stripunits(data)
 3×3 DataFrame
@@ -122,11 +137,14 @@ Reads the units declared in the column headers (`name (unit)`) and attaches them
 values, returning a DataFrame of Unitful quantities with the plain names (`D (cm)` becomes
 `D` with values in `cm`). Use it on any tabular input — raw field data or a table saved
 with [`stripunits`](@ref), of which it is the inverse.
-Safely evaluates mathematical expressions (e.g., m^3) inside the Unitful module scope.
+Units are read with `Unitful.uparse`, which accepts only unit expressions (e.g., `m^3`).
 
 # Header convention
 `name (unit)`, with the unit written as Unitful parses it (`m^2`, `m^3`, `ha`, `inch`).
-Headers whose unit cannot be parsed (e.g. `m²`) are left unchanged with a warning.
+Compound units may separate their factors with `*` or a space (`m^3*ha^-1` or `m^3 ha^-1`,
+as [`stripunits`](@ref) writes them).
+Headers whose unit cannot be parsed (e.g. `m²`), or whose values cannot carry a unit
+(e.g. text), are left unchanged with a warning.
 
 # Arguments
 - `data::AbstractDataFrame`: The input DataFrame, typically loaded from a CSV or Excel file.
@@ -137,7 +155,14 @@ Headers whose unit cannot be parsed (e.g. `m²`) are left unchanged with a warni
 # Examples
 ```julia-repl
 julia> field = DataFrame("D (cm)" => [30.0, 25.0, 18.5], "H (m)" => [22.4, 20.1, 16.8],
-                         "v (m^3)" => [0.7012, 0.4825, 0.2194]);
+                         "v (m^3)" => [0.7012, 0.4825, 0.2194])
+3×3 DataFrame
+ Row │ D (cm)   H (m)    v (m^3)
+     │ Float64  Float64  Float64
+─────┼───────────────────────────
+   1 │    30.0     22.4   0.7012
+   2 │    25.0     20.1   0.4825
+   3 │    18.5     16.8   0.2194
 
 julia> parseunits(field)
 3×3 DataFrame
@@ -169,12 +194,14 @@ function parseunits(data::AbstractDataFrame)
       end
 
       try
-        # uparse can return an expression (e.g., for "m^3").
-        # Core.eval evaluates this expression safely inside the Unitful context.
-        u = Core.eval(Unitful, Unitful.uparse(unitstr))
+        # uparse returns the unit itself (e.g., m^3), accepting only unit expressions. The
+        # space Unitful prints between the factors of a compound unit (`cm m^2`) becomes `*`
+        u = Unitful.uparse(replace(unitstr, r"(?<=[\w)])\s+(?=[\w(])" => "*"))
 
+        # Attach the unit before renaming, so a failure leaves the column unchanged
+        col = dataRestored[!, colname] .* u
         rename!(dataRestored, colname => basename)
-        dataRestored[!, basename] = dataRestored[!, basename] .* u
+        dataRestored[!, basename] = col
       catch e
         # Formats the warning outside the macro to prevent scope interpolation bugs
         msg = "Could not parse unit '$(unitstr)' in column '$(colname)'. Error: $e"
@@ -191,13 +218,14 @@ end
 
 Returns the natural reference area used to extrapolate per-plot data to a population
 density estimate: hectares (`ha`) for the metric system, acres (`ac`) for the imperial
-system, detected from a length unit `u` (e.g., the unit of a diameter or height).
+system, detected from a unit `u` (e.g., the unit of a diameter, a height or a plot area).
 
 # Arguments
-- `u::Units`: A length unit, such as `unit(30u"cm")` or `unit(12u"inch")`.
+- `u::Units`: A length or area unit, such as `unit(30u"cm")`, `u"inch"` or `u"ft^2"`.
 
 # Returns
-- `Units`: `u"ha"` if `u` is a metric length unit, `u"ac"` if it is an imperial one.
+- `Units`: `u"ac"` if `u` is an imperial unit (`inch`, `ft`, `ft^2`, `ac`, ...), `u"ha"`
+  otherwise.
 
 # Examples
 
@@ -209,14 +237,14 @@ julia> referencearea(u"inch")
 ac
 ```
 """
-referencearea(u::Units) = u isa ImperialUnits ? u"ac" : u"ha"
+referencearea(u::Units) = systemunit(u, u"ha", u"ac")
 
 """
     referencearea(a::Area)
 
 The `Area`-quantity counterpart of [`referencearea(::Units)`](@ref): returns `u"ac"` if
-`a` is itself already given in acres, `u"ha"` otherwise (covering `ha` as well as any
-other metric area unit, e.g. `m^2`, `km^2`).
+`a` is given in an imperial area unit (`ac`, `ft^2`, ...), `u"ha"` otherwise (`ha`, `m^2`,
+`km^2`, ...).
 
 # Examples
 
@@ -224,11 +252,14 @@ other metric area unit, e.g. `m^2`, `km^2`).
 julia> referencearea(0.1u"ac")
 ac
 
+julia> referencearea(5000u"ft^2")
+ac
+
 julia> referencearea(1000u"m^2")
 ha
 ```
 """
-referencearea(a::Area) = unit(a) == u"ac" ? u"ac" : u"ha"
+referencearea(a::Area) = referencearea(unit(a))
 
 """
     referencevolume(u::Units)
@@ -253,7 +284,7 @@ julia> referencevolume(u"inch")
 ft^3
 ```
 """
-referencevolume(u::Units) = u isa ImperialUnits ? u"ft^3" : u"m^3"
+referencevolume(u::Units) = systemunit(u, u"m^3", u"ft^3")
 
 """
     inreferencevolume(v::Volume, u::Units)
@@ -283,7 +314,7 @@ without a conversion. This function performs that conversion.
 # Examples
 
 ```julia-repl
-julia> a = basalarea(30u"cm")
+julia> a = sectionalarea(30u"cm")
 0.07068583470577035 m^2
 
 julia> v = a * 300.0u"cm"
@@ -292,7 +323,7 @@ julia> v = a * 300.0u"cm"
 julia> inreferencevolume(v, 30u"cm")
 0.21205750411731103 m^3
 
-julia> v = basalarea(12.0u"inch") * 0.5u"ft"
+julia> v = sectionalarea(12.0u"inch") * 0.5u"ft"
 0.39269908169872414 ft^3
 
 julia> inreferencevolume(v, u"inch")
@@ -311,8 +342,8 @@ of trees, basal area) to a per-unit-area rate (trees/ha, m²/ha, trees/ac, ft²/
 the inverse of the sampled area expressed in its reference area.
 
 The reference area follows [`referencearea(::Area)`](@ref): acres (`ac`) when `area` is
-given in acres, hectares (`ha`) otherwise (any other metric area unit, e.g. `m^2`, is
-converted to hectares).
+given in an imperial unit (`ac`, `ft^2`, ...), hectares (`ha`) otherwise (any metric area
+unit, e.g. `m^2`, is converted to hectares).
 
 # Arguments
 - `area::Area`: The sampled area (e.g., the plot area).

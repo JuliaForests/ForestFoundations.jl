@@ -3,18 +3,18 @@ using DataFrames
 using Test
 
 @testset "ForestFoundations.jl" begin
-  @testset "Basal Area Tests" begin
+  @testset "Sectional Area Tests" begin
     dStandard = 30.0u"cm"
     expectedBasalArea = 0.07068583470577035
-    @test basalarea(dStandard) |> ustrip ≈ expectedBasalArea atol = 1e-6
-    @test unit(basalarea(dStandard)) == u"m^2"
-    @test basalarea(0.0u"cm") == 0.0u"m^2"
-    @test_throws DomainError basalarea(-dStandard)
+    @test sectionalarea(dStandard) |> ustrip ≈ expectedBasalArea atol = 1e-6
+    @test unit(sectionalarea(dStandard)) == u"m^2"
+    @test sectionalarea(0.0u"cm") == 0.0u"m^2"
+    @test_throws DomainError sectionalarea(-dStandard)
 
     # plain numbers carry no unit, so they are rejected instead of assumed to be cm
-    @test_throws MethodError basalarea(30)
+    @test_throws MethodError sectionalarea(30)
 
-    @test unit(basalarea(12u"inch")) == u"ft^2"
+    @test unit(sectionalarea(12u"inch")) == u"ft^2"
   end
 
   @testset "Unit Conversion Tests" begin
@@ -39,7 +39,16 @@ using Test
     parsed = parseunits(field)
     @test names(parsed) == ["tree", "dbh", "h"]
     @test parsed.dbh == [30.0, 25.0]u"cm"
-    @test basalarea.(parsed.dbh) ≈ [basalarea(30.0u"cm"), basalarea(25.0u"cm")]
+    @test sectionalarea.(parsed.dbh) ≈ [sectionalarea(30.0u"cm"), sectionalarea(25.0u"cm")]
+
+    # a column whose values cannot carry the unit keeps its original header
+    textcol = @test_logs (:warn,) parseunits(DataFrame("sp (ha)" => ["a", "b"]))
+    @test names(textcol) == ["sp (ha)"]
+    @test textcol[!, "sp (ha)"] == ["a", "b"]
+
+    # compound units written by stripunits (`cm m^2`, `m^3 ha^-1`) are read back
+    compound = DataFrame(v=[21.2]u"cm*m^2", xha=[150.0]u"m^3/ha")
+    @test parseunits(stripunits(compound)) == compound
   end
 
   @testset "Reference Area and Expansion Factor Tests" begin
@@ -76,6 +85,12 @@ using Test
     @test referencearea(1000.0u"m^2") == u"ha"
     @test referencearea(0.1u"ha") == u"ha"
     @test referencearea(0.1u"ac") == u"ac"
+
+    # any imperial area, not only acres, selects the acre
+    @test referencearea(u"ft^2") == u"ac"
+    @test referencearea(5000u"ft^2") == u"ac"
+    @test unit(expansionfactor(5000u"ft^2")) == u"ac^-1"
+    @test expansionfactor(43560u"ft^2") ≈ 1.0u"ac^-1"
   end
 
   @testset "Reference Volume Tests" begin
@@ -86,7 +101,7 @@ using Test
   end
 
   @testset "In Reference Volume Tests" begin
-    a = basalarea(30.0u"cm")
+    a = sectionalarea(30.0u"cm")
 
     # the raw product keeps a mixed unit; the conversion makes it coherent
     @test unit(a * 300.0u"cm") != u"m^3"
@@ -104,7 +119,7 @@ using Test
     @test ustrip(inreferencevolume(vimp, u"inch")) ≈ 0.39269908169872414 atol = 1e-12
 
     # the length unit decides the system, whatever the units of the other factors
-    vmixed = basalarea(30.0u"cm") * 10.0u"ft"
+    vmixed = sectionalarea(30.0u"cm") * 10.0u"ft"
     @test unit(inreferencevolume(vmixed, 30.0u"cm")) == u"m^3"
     @test ustrip(inreferencevolume(vmixed, 30.0u"cm")) ≈ 0.07068583470577035 * 3.048 atol = 1e-12
     @test unit(inreferencevolume(vmixed, 12.0u"inch")) == u"ft^3"
