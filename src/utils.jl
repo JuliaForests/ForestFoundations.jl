@@ -4,6 +4,29 @@
 systemunit(u::Units, metric::Units, imperial::Units) = u isa ImperialUnits ? imperial : metric
 
 """
+    checklengths(vectors::Pair{Symbol}...)
+
+Checks that the vectors, given as `name => vector` pairs, all have the same length, and throws
+a `DimensionMismatch` naming them otherwise. A pair whose vector is `nothing` (an optional
+argument that was not given) is skipped.
+
+# Examples
+```julia-repl
+julia> checklengths(:h => [0.3, 1.3, 2.3]u"m", :d => [30.0, 27.5, 25.1]u"cm")
+
+julia> checklengths(:h => [0.3, 1.3, 2.3]u"m", :d => [30.0, 27.5]u"cm")
+ERROR: DimensionMismatch: h and d must have the same length (got 3 and 2).
+```
+"""
+function checklengths(vectors::Pair{Symbol}...)
+  given = filter(p -> !isnothing(last(p)), vectors)
+  lengths = map(p -> length(last(p)), given)
+  allequal(lengths) && return nothing
+  names = join(first.(given), ", ", " and ")
+  throw(DimensionMismatch("$names must have the same length (got $(join(lengths, ", ", " and ")))."))
+end
+
+"""
     sectionalarea(d::Length)
 
 Calculates the sectional area (``a``) of a tree stem from its diameter (``d``): the area of

@@ -17,6 +17,15 @@ using Test
     @test unit(sectionalarea(12u"inch")) == u"ft^2"
   end
 
+  @testset "Length Check Tests" begin
+    h = [0.3, 1.3, 2.3]u"m"
+    @test checklengths(:h => h, :d => [30.0, 27.5, 25.1]u"cm") === nothing
+    @test_throws DimensionMismatch("h and d must have the same length (got 3 and 2).") checklengths(:h => h, :d => [30.0, 27.5]u"cm")
+    @test_throws DimensionMismatch("id, h and d must have the same length (got 3, 3 and 4).") checklengths(:id => 1:3, :h => h, :d => [1.0, 2, 3, 4]u"cm")
+    # an optional vector not given (`nothing`) is skipped
+    @test checklengths(:h => h, :E => nothing) === nothing
+  end
+
   @testset "Unit Conversion Tests" begin
     data = DataFrame(id=[1, 2], d=[30.0, 25.0]u"cm", v=[0.5, 0.3]u"m^3", note=["a", "b"])
 
