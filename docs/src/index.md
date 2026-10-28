@@ -39,7 +39,8 @@ extend its functions through Julia's multiple dispatch, without modifying it.
   the input unit alone.
 - **Tables with units** ([`stripunits`](@ref), [`parseunits`](@ref)): moves the unit of
   each `DataFrame` column into its header for CSV/Excel export, and reads it back from
-  the header when field data or results are loaded.
+  the header when field data or results are loaded. [`longtable`](@ref) turns a result table
+  into the vertical layout of the reports, a row per variable with its unit and its value.
 - **Unitful re-exports**: `@u_str`, `unit`, `ustrip`, `uconvert` and the `Length`, `Area`,
   `Volume` and `Mass` quantity types, so `using ForestFoundations` is enough to write
   quantities.

@@ -18,7 +18,7 @@ export quartπ, @u_str, unit, ustrip, uconvert, Length, Area, Volume, Mass, Unit
 
 include("utils.jl")
 
-export sectionalarea, checklengths, stripunits, parseunits, referencearea, referencevolume, inreferencevolume, expansionfactor
+export sectionalarea, checklengths, stripunits, parseunits, longtable, referencearea, referencevolume, inreferencevolume, expansionfactor
 
 # `basalarea` was renamed `sectionalarea`; the old name still works with a deprecation warning
 Base.@deprecate basalarea(d::Length) sectionalarea(d)

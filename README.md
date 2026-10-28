@@ -49,6 +49,8 @@ and re-exports the pieces every forestry calculation needs (`@u_str`, `unit`, `u
   Converts a `DataFrame` of `Unitful` quantities into plain numeric columns (with the
   unit recorded in the column name) for export to CSV/Excel, and reads the units declared
   in the headers of any table (raw field data or exported results) back into quantities.
+  `longtable` turns a result table into the vertical layout of the reports, a row per
+  variable with its unit apart from its value.
 
 ## Units are always explicit
 

@@ -60,6 +60,26 @@ using Test
     @test parseunits(stripunits(compound)) == compound
   end
 
+  @testset "Long Table Tests" begin
+    data = DataFrame(area=["A", "B"], xm=[21.8, 19.6]u"m^3", cv=[39.58, 45.64], n=[70, 20], pop=["finite", "infinite"])
+
+    # one row: a value column, the unit apart from the value
+    one = longtable(data[1:1, Not(:area)])
+    @test names(one) == ["variable", "unit", "value"]
+    @test one.variable == ["xm", "cv", "n", "pop"]
+    @test one.unit == ["m^3", "", "", ""]
+    @test one.value == [21.8, 39.58, 70, "finite"]
+
+    # many rows: a value column per row, named by the given column, which is not a variable
+    many = longtable(data, :area)
+    @test names(many) == ["variable", "unit", "A", "B"]
+    @test many.B == [19.6, 45.64, 20, "infinite"]
+    @test names(longtable(data[:, Not(:area)])) == ["variable", "unit", "value1", "value2"]
+
+    # the unit is written as in the headers of stripunits, so parseunits reads it back
+    @test only(longtable(DataFrame(xha=[150.0]u"m^3/ha")).unit) == "m^3 ha^-1"
+  end
+
   @testset "Reference Area and Expansion Factor Tests" begin
     # metric vs imperial reference area
     @test referencearea(u"cm") == u"ha"

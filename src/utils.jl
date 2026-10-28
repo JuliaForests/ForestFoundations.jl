@@ -237,6 +237,70 @@ function parseunits(data::AbstractDataFrame)
 end
 
 """
+    longtable(data::AbstractDataFrame)
+    longtable(data::AbstractDataFrame, column::Symbol)
+
+Turns a table with a column per variable into the vertical layout of the reports, a row per
+variable: its name, its unit and its value. The unit leaves the value, as in
+[`stripunits`](@ref), so the table can be saved to CSV/Excel as it is.
+
+# Arguments
+- `data::AbstractDataFrame`: The table, a column per variable and a row per result (for
+  example per inventory, per stratum or per tree). Each column must hold a single unit.
+- `column::Symbol`: With many rows, the column that names them (an area, a stratum, a tree):
+  its values become the headers of the value columns, and it is not listed as a variable.
+
+# Returns
+- `DataFrame`: The columns `variable` and `unit` (empty for a variable without unit), then
+  `value` for a table of one row, or a column per row: named by `column` when it is given,
+  `value1`, `value2`, ... otherwise.
+
+# Examples
+```julia-repl
+julia> data = DataFrame(area=["A", "B"], xm=[21.8, 19.6]u"m^3", cv=[39.58, 45.64], n=[70, 20])
+2×4 DataFrame
+ Row │ area    xm         cv       n
+     │ String  Quantity…  Float64  Int64
+─────┼───────────────────────────────────
+   1 │ A        21.8 m^3    39.58     70
+   2 │ B        19.6 m^3    45.64     20
+
+julia> longtable(data[1:1, Not(:area)])
+3×3 DataFrame
+ Row │ variable  unit    value
+     │ String    String  Real
+─────┼─────────────────────────
+   1 │ xm        m^3     21.8
+   2 │ cv                39.58
+   3 │ n                 70
+
+julia> longtable(data, :area)
+3×4 DataFrame
+ Row │ variable  unit    A      B
+     │ String    String  Real   Real
+─────┼────────────────────────────────
+   1 │ xm        m^3     21.8   19.6
+   2 │ cv                39.58  45.64
+   3 │ n                 70     20
+```
+"""
+function longtable(data::AbstractDataFrame, column::Union{Symbol,Nothing}=nothing)
+  variables = column === nothing ? propertynames(data) : filter(!=(column), propertynames(data))
+  # the unit of each column, written as in the headers of `stripunits`
+  units = map(variables) do c
+    T = nonmissingtype(eltype(data[!, c]))
+    T <: Quantity && unit(T) != NoUnits ? string(unit(T)) : ""
+  end
+  table = DataFrame(variable=string.(variables), unit=units)
+  headers = column !== nothing ? string.(data[!, column]) :
+            nrow(data) == 1 ? ["value"] : ["value$i" for i in 1:nrow(data)]
+  for (i, header) in enumerate(headers)
+    table[!, header] = [x isa Quantity ? ustrip(x) : x for x in (data[i, c] for c in variables)]
+  end
+  return table
+end
+
+"""
     referencearea(u::Units)
 
 Returns the natural reference area used to extrapolate per-plot data to a population
